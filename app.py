@@ -29,7 +29,14 @@ else:
 
 # Initialize ChromaDB client
 chroma_client = chromadb.PersistentClient(path="./chroma_db")
-collection = chroma_client.get_or_create_collection(name="documents")
+
+# Get or create collection with a fixed name
+COLLECTION_NAME = "documents"
+try:
+    collection = chroma_client.get_collection(name=COLLECTION_NAME)
+except Exception as e:
+    print(f"Creating new collection: {e}")
+    collection = chroma_client.create_collection(name=COLLECTION_NAME)
 
 # Initialize RAG engine
 rag_engine = RAGEngine(collection)
@@ -147,15 +154,15 @@ def reset_knowledge_base():
         global collection
         print("Starting knowledge base reset...")
         
-        # Delete all documents from ChromaDB
+        # Delete and recreate ChromaDB collection
         print("Deleting ChromaDB collection...")
         try:
-            collection.delete(ids=collection.get()['ids'])
+            chroma_client.delete_collection(name=COLLECTION_NAME)
         except Exception as e:
-            print(f"Error deleting ChromaDB documents: {e}")
-            # If delete fails, try to delete the collection and recreate it
-            chroma_client.delete_collection(name="documents")
-            collection = chroma_client.get_or_create_collection(name="documents")
+            print(f"Error deleting collection: {e}")
+        
+        print("Creating new ChromaDB collection...")
+        collection = chroma_client.create_collection(name=COLLECTION_NAME)
         
         print("Deleting uploaded files...")
         # Delete all files in upload directory except registry.json

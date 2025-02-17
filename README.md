@@ -42,7 +42,7 @@ docker-compose up -d
 
 6. Run the Flask application:
 ```bash
-./restart.sh  # This will handle killing any existing process and starting the app
+python app.py
 ```
 
 7. Open your browser and visit `http://localhost:5001`

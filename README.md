@@ -2,6 +2,8 @@
 
 An educational RAG (Retrieval-Augmented Generation) application that allows students to upload documents and understand how different components (ChromaDB, OpenAI, etc.) interact to provide answers. The system features detailed request/response logging for learning purposes.
 
+![](screenshot.png)
+
 ## Features
 
 - Upload and process PDF, TXT, and Markdown files

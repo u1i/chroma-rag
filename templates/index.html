@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Q&A System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .drag-active {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold mb-8 text-center">Document Q&A System</h1>
+        
+        <!-- Tab Navigation -->
+        <div class="flex border-b border-gray-200 mb-8">
+            <button id="qaTab" onclick="showTab('qa')" 
+                    class="px-4 py-2 text-blue-600 border-b-2 border-blue-600 font-medium">
+                Q&A
+            </button>
+            <button id="knowledgeTab" onclick="showTab('knowledge')" 
+                    class="px-4 py-2 text-gray-600 font-medium">
+                Knowledge Base
+            </button>
+        </div>
+        
+        <!-- Q&A Section -->
+        <div id="qaSection">
+            <!-- File Upload Section -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+                <h2 class="text-xl font-semibold mb-4">Upload Documents</h2>
+                <form id="uploadForm" class="space-y-4">
+                    <div id="dropZone" class="border-dashed border-2 border-gray-300 rounded-lg p-6 text-center">
+                        <input type="file" id="fileInput" class="hidden" accept=".txt,.pdf,.md">
+                        <label for="fileInput" class="cursor-pointer text-blue-500 hover:text-blue-600">
+                            Click to upload or drag and drop
+                        </label>
+                        <p class="text-sm text-gray-500 mt-2">Supported files: PDF, TXT, Markdown</p>
+                    </div>
+                    <div id="uploadStatus" class="text-sm"></div>
+                </form>
+            </div>
+        
+            <!-- Main Content Area -->
+            <div class="flex space-x-4">
+                <!-- Question Section -->
+                <div class="flex-1 bg-white rounded-lg shadow-md p-6">
+                    <h2 class="text-xl font-semibold mb-4">Ask a Question</h2>
+                    <div class="space-y-4">
+                        <textarea id="questionInput" 
+                                  class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                  rows="3"
+                                  placeholder="Type your question here..."></textarea>
+                        <button id="askButton" 
+                                class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                            Ask Question
+                        </button>
+                        <div id="answer" class="mt-4 p-4 bg-gray-50 rounded-lg hidden">
+                            <h3 class="font-semibold mb-2">Answer:</h3>
+                            <p id="answerText" class="text-gray-700"></p>
+                            <div id="sources" class="mt-2 text-sm text-gray-500"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System Logs Panel -->
+                <div class="w-1/2 bg-white rounded-lg shadow-md p-6 overflow-y-auto" style="max-height: calc(100vh - 200px);">
+                    <h2 class="text-xl font-semibold mb-4">System Logs</h2>
+                    <div id="systemLogs" class="space-y-4">
+                        <!-- Logs will be inserted here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Knowledge Base Section -->
+        <div id="knowledgeSection" class="hidden">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold">Knowledge Base</h2>
+                    <button onclick="resetKnowledgeBase()" 
+                            class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors">
+                        Reset Everything
+                    </button>
+                </div>
+                <div id="documentList" class="space-y-2">
+                    <!-- Documents will be listed here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tab Handling
+        function showTab(tabName) {
+            const qaSection = document.getElementById('qaSection');
+            const knowledgeSection = document.getElementById('knowledgeSection');
+            const qaTab = document.getElementById('qaTab');
+            const knowledgeTab = document.getElementById('knowledgeTab');
+            
+            if (tabName === 'qa') {
+                qaSection.classList.remove('hidden');
+                knowledgeSection.classList.add('hidden');
+                qaTab.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+                qaTab.classList.remove('text-gray-600');
+                knowledgeTab.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
+                knowledgeTab.classList.add('text-gray-600');
+            } else {
+                qaSection.classList.add('hidden');
+                knowledgeSection.classList.remove('hidden');
+                knowledgeTab.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+                knowledgeTab.classList.remove('text-gray-600');
+                qaTab.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
+                qaTab.classList.add('text-gray-600');
+                loadDocuments();
+            }
+        }
+        
+        // Knowledge Base Handling
+        async function loadDocuments() {
+            try {
+                const response = await fetch('/documents');
+                const documents = await response.json();
+                
+                const documentList = document.getElementById('documentList');
+                documentList.innerHTML = '';
+                
+                documents.forEach(doc => {
+                    const docElement = document.createElement('div');
+                    docElement.className = 'flex justify-between items-center p-3 bg-gray-50 rounded';
+                    docElement.innerHTML = `
+                        <span class="text-gray-700">${doc.filename}</span>
+                        <button onclick="removeDocument('${doc.id}')" 
+                                class="text-red-600 hover:text-red-800">
+                            Remove
+                        </button>
+                    `;
+                    documentList.appendChild(docElement);
+                });
+            } catch (error) {
+                console.error('Error loading documents:', error);
+            }
+        }
+        
+        async function removeDocument(docId) {
+            if (!confirm('Are you sure you want to remove this document?')) return;
+            
+            try {
+                const response = await fetch(`/documents/${docId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    loadDocuments();
+                } else {
+                    alert('Error removing document');
+                }
+            } catch (error) {
+                console.error('Error removing document:', error);
+                alert('Error removing document');
+            }
+        }
+
+        async function resetKnowledgeBase() {
+            if (!confirm('Are you sure you want to reset everything? This will remove all documents and cannot be undone.')) return;
+            
+            try {
+                const response = await fetch('/reset', {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    loadDocuments();
+                    alert('Knowledge base has been reset successfully!');
+                } else {
+                    alert('Error resetting knowledge base');
+                }
+            } catch (error) {
+                console.error('Error resetting knowledge base:', error);
+                alert('Error resetting knowledge base');
+            }
+        }
+        
+        // File Upload Handling
+        const uploadForm = document.getElementById('uploadForm');
+        const fileInput = document.getElementById('fileInput');
+        const uploadStatus = document.getElementById('uploadStatus');
+        const dropZone = document.getElementById('dropZone');
+        
+        // File Input Change Handler
+        fileInput.addEventListener('change', handleFileUpload);
+        
+        // Drag and Drop Handlers
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-active');
+        });
+        
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-active');
+        });
+        
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-active');
+            
+            const file = e.dataTransfer.files[0];
+            if (file) {
+                handleFileUpload(file);
+            }
+        });
+        
+        async function handleFileUpload(fileOrEvent) {
+            const file = fileOrEvent instanceof File ? fileOrEvent : fileOrEvent.target.files[0];
+            if (!file) return;
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            uploadStatus.textContent = 'Uploading...';
+            uploadStatus.className = 'text-sm text-blue-500';
+            
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    uploadStatus.textContent = 'File uploaded successfully!';
+                    uploadStatus.className = 'text-sm text-green-500';
+                    // Refresh document list if we're on the knowledge base tab
+                    if (!document.getElementById('knowledgeSection').classList.contains('hidden')) {
+                        loadDocuments();
+                    }
+                } else {
+                    throw new Error(result.error);
+                }
+            } catch (error) {
+                uploadStatus.textContent = `Error: ${error.message}`;
+                uploadStatus.className = 'text-sm text-red-500';
+            }
+        };
+        
+        // Question Handling
+        const questionInput = document.getElementById('questionInput');
+        const askButton = document.getElementById('askButton');
+        const answer = document.getElementById('answer');
+        const answerText = document.getElementById('answerText');
+        const sources = document.getElementById('sources');
+        const systemLogs = document.getElementById('systemLogs');
+        
+        function createLogPanel(log) {
+            const panel = document.createElement('div');
+            panel.className = 'border border-gray-200 rounded-lg overflow-hidden';
+            
+            const header = document.createElement('div');
+            header.className = `p-3 cursor-pointer select-none ${log.type === 'request' ? 'bg-blue-50' : 'bg-green-50'}`;
+            header.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <span class="font-medium">${log.system} ${log.type.charAt(0).toUpperCase() + log.type.slice(1)}</span>
+                    <span class="text-sm text-gray-500">${log.operation}</span>
+                </div>
+            `;
+            
+            const content = document.createElement('div');
+            content.className = 'p-3 bg-white hidden';
+            content.innerHTML = `<pre class="text-sm overflow-x-auto">${JSON.stringify(log.data, null, 2)}</pre>`;
+            
+            header.addEventListener('click', () => {
+                content.classList.toggle('hidden');
+            });
+            
+            panel.appendChild(header);
+            panel.appendChild(content);
+            return panel;
+        }
+        
+        askButton.addEventListener('click', async () => {
+            const question = questionInput.value.trim();
+            if (!question) return;
+            
+            askButton.disabled = true;
+            askButton.textContent = 'Thinking...';
+            answer.classList.add('hidden');
+            systemLogs.innerHTML = '';
+            
+            // Log client request to backend
+            const clientLog = {
+                system: 'Client',
+                type: 'request',
+                operation: 'query',
+                data: { question }
+            };
+            systemLogs.appendChild(createLogPanel(clientLog));
+            
+            try {
+                const response = await fetch('/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ question })
+                });
+                
+                const result = await response.json();
+                
+                // Display system logs in sequence
+                if (response.ok) {
+                    // Display system logs in sequence
+                    if (result.logs) {
+                        // Backend received request
+                        systemLogs.appendChild(createLogPanel({
+                            system: 'Backend',
+                            type: 'request',
+                            operation: 'received',
+                            data: { question }
+                        }));
+                        
+                        // Show ChromaDB and OpenAI interactions
+                        result.logs.forEach(log => {
+                            systemLogs.appendChild(createLogPanel(log));
+                        });
+                        
+                        // Backend sending response
+                        systemLogs.appendChild(createLogPanel({
+                            system: 'Backend',
+                            type: 'response',
+                            operation: 'completed',
+                            data: {
+                                answer: result.answer,
+                                sources: result.sources
+                            }
+                        }));
+                    }
+                    
+                    answerText.textContent = result.answer;
+                    sources.textContent = `Sources: ${result.sources.join(', ')}`;
+                    answer.classList.remove('hidden');
+                } else {
+                    throw new Error(result.error);
+                }
+            } catch (error) {
+                answer.classList.remove('hidden');
+                answerText.textContent = `Error: ${error.message}`;
+                sources.textContent = '';
+            } finally {
+                askButton.disabled = false;
+                askButton.textContent = 'Ask Question';
+            }
+        });
+    </script>
+</body>
+</html>

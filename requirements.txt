@@ -1,0 +1,7 @@
+flask==3.0.2
+python-dotenv==1.0.1
+chromadb==0.4.22
+openai==0.28.1
+python-multipart==0.0.9
+pypdf==4.0.1
+markdown==3.5.2

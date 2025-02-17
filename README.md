@@ -111,7 +111,7 @@ Click on any log entry to view the detailed request/response data.
 ### Configuration
 - Maximum file size: 16MB
 - Supported formats: PDF, TXT, Markdown
-- Default model: GPT-4 (configurable via .env)
+- Default model: GPT-4o (configurable via .env)
 - ChromaDB uses the default embedding model
 
 ### Best Practices

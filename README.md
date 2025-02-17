@@ -45,7 +45,7 @@ docker-compose up -d
 python app.py
 ```
 
-7. Open your browser and visit `http://localhost:5001`
+7. Open your browser and visit `http://localhost:8080`
 
 ## Usage
 

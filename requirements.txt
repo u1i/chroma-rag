@@ -5,3 +5,6 @@ openai==0.28.1
 python-multipart==0.0.9
 pypdf==4.0.1
 markdown==3.5.2
+numpy==1.24.3  # Pin to version before 2.0
+onnxruntime==1.16.3  # Required by ChromaDB
+typing-extensions==4.8.0  # Required by ChromaDB

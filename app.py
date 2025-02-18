@@ -27,16 +27,32 @@ if os.path.exists(REGISTRY_FILE):
 else:
     document_registry = {}
 
-# Initialize ChromaDB client
+# Initialize ChromaDB client and collection
 chroma_client = chromadb.PersistentClient(path="./chroma_db")
-
-# Get or create collection with a fixed name
 COLLECTION_NAME = "documents"
-try:
-    collection = chroma_client.get_collection(name=COLLECTION_NAME)
-except Exception as e:
-    print(f"Creating new collection: {e}")
-    collection = chroma_client.create_collection(name=COLLECTION_NAME)
+
+def get_or_create_collection():
+    """Get or create the ChromaDB collection, ensuring it exists."""
+    try:
+        # Try to get existing collection
+        return chroma_client.get_collection(name=COLLECTION_NAME)
+    except Exception as e:
+        print(f"Collection not found: {e}")
+        try:
+            # Try to create new collection
+            return chroma_client.create_collection(name=COLLECTION_NAME)
+        except Exception as e:
+            print(f"Error creating collection: {e}")
+            # If creation fails, delete and recreate
+            try:
+                chroma_client.delete_collection(name=COLLECTION_NAME)
+                return chroma_client.create_collection(name=COLLECTION_NAME)
+            except Exception as e:
+                print(f"Fatal error with collection: {e}")
+                raise
+
+# Initialize collection
+collection = get_or_create_collection()
 
 # Initialize RAG engine
 rag_engine = RAGEngine(collection)
@@ -180,31 +196,87 @@ def delete_document(doc_id):
 
 @app.route('/query', methods=['POST'])
 def query():
+    global collection, rag_engine
     data = request.json
     if not data or 'question' not in data:
         return jsonify({'error': 'No question provided'}), 400
     
     try:
+        # First check if we have any documents
+        try:
+            doc_count = len(collection.get()['ids'])
+            if doc_count == 0:
+                return jsonify({
+                    'error': 'No documents found in the knowledge base. Please upload some documents first.',
+                    'logs': [{
+                        'system': 'Backend',
+                        'type': 'error',
+                        'operation': 'query',
+                        'data': {'message': 'Empty knowledge base'}
+                    }]
+                }), 400
+        except Exception as e:
+            print(f"Error checking collection: {e}")
+            # If collection doesn't exist, recreate it
+            collection = get_or_create_collection()
+            rag_engine = RAGEngine(collection)
+            return jsonify({
+                'error': 'Knowledge base was reset. Please upload documents and try again.',
+                'logs': [{
+                    'system': 'Backend',
+                    'type': 'error',
+                    'operation': 'query',
+                    'data': {'message': 'Collection recreated'}
+                }]
+            }), 400
+        
+        # Process the question
         response = rag_engine.get_response(data['question'])
         return jsonify(response), 200
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        error_message = str(e)
+        return jsonify({
+            'error': error_message,
+            'logs': [{
+                'system': 'Backend',
+                'type': 'error',
+                'operation': 'query',
+                'data': {'message': error_message}
+            }]
+        }), 500
 
 @app.route('/reset', methods=['POST'])
 def reset_knowledge_base():
     try:
-        global collection
+        global collection, rag_engine
         print("Starting knowledge base reset...")
         
-        # Delete and recreate ChromaDB collection
-        print("Deleting ChromaDB collection...")
+        # Recreate ChromaDB collection
+        print("Resetting ChromaDB collection...")
         try:
-            chroma_client.delete_collection(name=COLLECTION_NAME)
+            # Try to delete existing collection
+            try:
+                chroma_client.delete_collection(name=COLLECTION_NAME)
+            except Exception as e:
+                print(f"Error deleting collection (may not exist): {e}")
+            
+            # Create new collection
+            collection = chroma_client.create_collection(name=COLLECTION_NAME)
+            # Update RAG engine with new collection
+            rag_engine = RAGEngine(collection)
         except Exception as e:
-            print(f"Error deleting collection: {e}")
-        
-        print("Creating new ChromaDB collection...")
-        collection = chroma_client.create_collection(name=COLLECTION_NAME)
+            print(f"Error recreating collection: {e}")
+            # Last resort: try to clear existing collection
+            try:
+                collection = chroma_client.get_collection(name=COLLECTION_NAME)
+                existing_ids = collection.get()['ids']
+                if existing_ids:
+                    collection.delete(ids=existing_ids)
+                # Update RAG engine with cleared collection
+                rag_engine = RAGEngine(collection)
+            except Exception as inner_e:
+                print(f"Fatal error resetting collection: {inner_e}")
+                raise
         
         print("Deleting uploaded files...")
         # Delete all files in upload directory except registry.json

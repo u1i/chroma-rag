@@ -224,6 +224,20 @@
             
             uploadStatus.textContent = 'Uploading...';
             uploadStatus.className = 'text-sm text-blue-500';
+            systemLogs.innerHTML = '';
+            
+            // Log client upload request
+            const uploadRequestLog = {
+                system: 'Client',
+                type: 'request',
+                operation: 'upload',
+                data: {
+                    filename: file.name,
+                    size: file.size,
+                    type: file.type
+                }
+            };
+            systemLogs.appendChild(createLogPanel(uploadRequestLog));
             
             try {
                 const response = await fetch('/upload', {
@@ -234,6 +248,26 @@
                 const result = await response.json();
                 
                 if (response.ok) {
+                    // Display backend processing logs
+                    if (result.logs) {
+                        result.logs.forEach(log => {
+                            systemLogs.appendChild(createLogPanel(log));
+                        });
+                    }
+                    
+                    // Log successful upload
+                    const uploadResponseLog = {
+                        system: 'Client',
+                        type: 'response',
+                        operation: 'upload',
+                        data: {
+                            status: 'success',
+                            document_id: result.document_id,
+                            message: result.message
+                        }
+                    };
+                    systemLogs.appendChild(createLogPanel(uploadResponseLog));
+                    
                     uploadStatus.textContent = 'File uploaded successfully!';
                     uploadStatus.className = 'text-sm text-green-500';
                     // Refresh document list if we're on the knowledge base tab
@@ -241,9 +275,29 @@
                         loadDocuments();
                     }
                 } else {
+                    // Log error
+                    const errorLog = {
+                        system: 'Client',
+                        type: 'error',
+                        operation: 'upload',
+                        data: {
+                            error: result.error
+                        }
+                    };
+                    systemLogs.appendChild(createLogPanel(errorLog));
                     throw new Error(result.error);
                 }
             } catch (error) {
+                // Log error
+                const errorLog = {
+                    system: 'Client',
+                    type: 'error',
+                    operation: 'upload',
+                    data: {
+                        error: error.message
+                    }
+                };
+                systemLogs.appendChild(createLogPanel(errorLog));
                 uploadStatus.textContent = `Error: ${error.message}`;
                 uploadStatus.className = 'text-sm text-red-500';
             }

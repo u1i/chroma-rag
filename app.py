@@ -66,10 +66,23 @@ def upload_file():
         
         try:
             # Process and add document to ChromaDB
-            chunks = process_document(filepath)
+            chunks, processing_logs = process_document(filepath)
             
             # Generate document ID
             doc_id = f"doc_{int(time.time())}"
+            
+            # Log ChromaDB operation start
+            chroma_request_log = {
+                "system": "ChromaDB",
+                "type": "request",
+                "operation": "add_chunks",
+                "data": {
+                    "chunk_count": len(chunks),
+                    "average_chunk_size": sum(len(chunk) for chunk in chunks) / len(chunks) if chunks else 0,
+                    "doc_id": doc_id
+                }
+            }
+            processing_logs.append(chroma_request_log)
             
             # Add chunks to ChromaDB with metadata
             chunk_ids = []
@@ -81,6 +94,31 @@ def upload_file():
                     metadatas=[{"source": filename, "chunk": i, "doc_id": doc_id}],
                     ids=[chunk_id]
                 )
+                
+                # Log each chunk addition
+                processing_logs.append({
+                    "system": "ChromaDB",
+                    "type": "info",
+                    "operation": "chunk_added",
+                    "data": {
+                        "chunk_id": chunk_id,
+                        "chunk_size": len(chunk),
+                        "chunk_number": i + 1,
+                        "total_chunks": len(chunks)
+                    }
+                })
+            
+            # Log successful ChromaDB operation
+            processing_logs.append({
+                "system": "ChromaDB",
+                "type": "response",
+                "operation": "add_chunks",
+                "data": {
+                    "status": "success",
+                    "chunks_added": len(chunks),
+                    "doc_id": doc_id
+                }
+            })
             
             # Update registry
             document_registry[doc_id] = {
@@ -91,7 +129,11 @@ def upload_file():
             with open(REGISTRY_FILE, 'w') as f:
                 json.dump(document_registry, f)
             
-            return jsonify({'message': 'File successfully uploaded and processed'}), 200
+            return jsonify({
+                'message': 'File successfully uploaded and processed',
+                'document_id': doc_id,
+                'logs': processing_logs
+            }), 200
         except Exception as e:
             # Clean up file if there was an error
             if os.path.exists(filepath):
